@@ -5,51 +5,243 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Event Photo Frame</title>
     <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        #photoCanvas { border: 1px solid black; margin-top: 20px; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+            font-size: 2rem;
+            color: #333;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            text-align: center;
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .buttons button, .buttons input[type="file"] {
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .buttons button:hover, .buttons input[type="file"]:hover {
+            background-color: #0056b3;
+        }
+
+        .buttons button:disabled {
+            background-color: #ddd;
+            cursor: not-allowed;
+        }
+
+        #video {
+            display: none;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        #photoCanvas {
+            border: 4px solid #007BFF;
+            border-radius: 10px;
+            margin: 0 auto;
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        #downloadBtn {
+            padding: 12px 20px;
+            font-size: 18px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background-color 0.3s ease;
+        }
+
+        #downloadBtn:hover {
+            background-color: #218838;
+        }
+
+        #downloadBtn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .buttons button, .buttons input[type="file"] {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            #downloadBtn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Upload Your Photo</h1>
-    <input type="file" id="uploadPhoto" accept="image/*">
-    <br><br>
-    <canvas id="photoCanvas"></canvas>
-    <br><br>
-    <button id="downloadBtn">Download Photo</button>
+    <h1>Upload or Capture Your Photo</h1>
+
+    <div class="container">
+        <!-- Buttons to either upload or capture photo -->
+        <div class="buttons">
+            <input type="file" id="uploadPhoto" accept="image/*">
+            <button id="captureBtn">Capture Photo with Camera</button>
+        </div>
+        
+        <video id="video" width="400" height="300" autoplay></video>
+
+        <canvas id="photoCanvas"></canvas>
+        <br>
+        <button id="downloadBtn" disabled>Download Photo</button>
+    </div>
 
     <script>
         const uploadPhoto = document.getElementById('uploadPhoto');
         const canvas = document.getElementById('photoCanvas');
         const ctx = canvas.getContext('2d');
         const downloadBtn = document.getElementById('downloadBtn');
+        const video = document.getElementById('video');
+        const captureBtn = document.getElementById('captureBtn');
+        
         let frameImage = new Image();
-        frameImage.src = 'frame.png';  // Your static frame image
+        frameImage.src = 'frame.png';  // Path to your static frame
 
+        // Load the frame initially when the page loads
+        frameImage.onload = () => {
+            canvas.width = frameImage.width;
+            canvas.height = frameImage.height;
+            ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+        };
+
+        // **Helper function to crop image to 1:1 aspect ratio (centered)**
+        function cropToSquare(image) {
+            const minSize = Math.min(image.width, image.height);  // Find the smaller dimension
+            const sx = (image.width - minSize) / 2;  // Start cropping point for width
+            const sy = (image.height - minSize) / 2; // Start cropping point for height
+            return {sx, sy, size: minSize};  // Return coordinates and size for cropping
+        }
+
+        // Function to draw image on the canvas with the frame
+        function drawImageWithFrame(image) {
+            const cropInfo = cropToSquare(image);
+
+            // Resize the canvas to the size of the frame
+            canvas.width = frameImage.width;
+            canvas.height = frameImage.height;
+
+            // Calculate the placement and size for the cropped guest image
+            const guestX = (canvas.width * 0.125);  // Adjusted for centering inside the frame
+            const guestY = (canvas.height * 0.125);
+            const guestWidth = canvas.width * 0.75;  // Scaled to fit within the frame
+            const guestHeight = canvas.height * 0.75;
+
+            // Clear the canvas before drawing
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the cropped image first
+            ctx.drawImage(image, cropInfo.sx, cropInfo.sy, cropInfo.size, cropInfo.size, guestX, guestY, guestWidth, guestHeight);
+
+            // Draw the static frame over it
+            ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+
+            // Enable the download button after the image is processed
+            downloadBtn.disabled = false;
+        }
+
+        // **Handle File Upload**
         uploadPhoto.addEventListener('change', (e) => {
             const reader = new FileReader();
             reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Set canvas size to match frame size
-                    canvas.width = frameImage.width;
-                    canvas.height = frameImage.height;
-
-                    // Draw the uploaded image
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    // Draw the static frame over the uploaded image
-                    ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+                const guestImage = new Image();
+                guestImage.onload = () => {
+                    drawImageWithFrame(guestImage);  // Crop and draw the image with the frame
                 };
-                img.src = event.target.result;
+                guestImage.src = event.target.result;
             };
             reader.readAsDataURL(e.target.files[0]);
         });
 
+        // **Capture Photo from Camera**
+        captureBtn.addEventListener('click', async () => {
+            // Request access to the camera
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.style.display = 'block';  // Show the video feed
+                captureBtn.textContent = 'Take Photo';  // Change button text to "Take Photo"
+
+                captureBtn.onclick = () => {
+                    // Capture the photo from the video stream
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = video.videoWidth;
+                    tempCanvas.height = video.videoHeight;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+                    const guestImage = new Image();
+                    guestImage.onload = () => {
+                        drawImageWithFrame(guestImage);  // Crop and draw the image with the frame
+                    };
+                    guestImage.src = tempCanvas.toDataURL('image/png');
+
+                    // Stop the video stream after taking the photo
+                    const tracks = video.srcObject.getTracks();
+                    tracks.forEach(track => track.stop());
+                    video.style.display = 'none';  // Hide the video feed
+                    captureBtn.textContent = 'Capture Photo with Camera';  // Reset button text
+                };
+            }
+        });
+
+        // **Download the combined image**
         downloadBtn.addEventListener('click', () => {
-            const link = document.createElement('a');
-            link.download = 'photo_with_frame.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
+            // Ensure canvas has rendered before download
+            if (canvas.width && canvas.height) {
+                const link = document.createElement('a');
+                link.download = 'photo_with_frame.png';
+                link.href = canvas.toDataURL('image/png');  // Convert canvas to a PNG
+                link.click();  // Trigger the download
+            } else {
+                alert("Please upload or capture a photo before downloading.");
+            }
         });
     </script>
 </body>
