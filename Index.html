@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Photo Frame</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; }
+        #photoCanvas { border: 1px solid black; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Upload Your Photo</h1>
+    <input type="file" id="uploadPhoto" accept="image/*">
+    <br><br>
+    <canvas id="photoCanvas"></canvas>
+    <br><br>
+    <button id="downloadBtn">Download Photo</button>
+
+    <script>
+        const uploadPhoto = document.getElementById('uploadPhoto');
+        const canvas = document.getElementById('photoCanvas');
+        const ctx = canvas.getContext('2d');
+        const downloadBtn = document.getElementById('downloadBtn');
+        let frameImage = new Image();
+        frameImage.src = 'frame.png';  // Your static frame image
+
+        uploadPhoto.addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Set canvas size to match frame size
+                    canvas.width = frameImage.width;
+                    canvas.height = frameImage.height;
+
+                    // Draw the uploaded image
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // Draw the static frame over the uploaded image
+                    ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'photo_with_frame.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    </script>
+</body>
+</html>
